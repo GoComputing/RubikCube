@@ -31,14 +31,22 @@ run: $(EXEC)
 
 
 # ******************************* Dependencies ******************************* #
-$(BIN)/main: $(OBJ)/main.o
+$(BIN)/main: $(OBJ)/main.o $(OBJ)/tools.o
 	@echo "Linking executable..."
 	$(CL) $(CLFLAGS) -o $@ $^
 
 
-$(OBJ)/main.o: $(SRC)/main.cpp
+$(OBJ)/main.o: $(SRC)/main.cpp $(INC)/rubik.h
 	@echo "Compiling main program..."
-	$(CL) $(CXXFLAGS) -o $@ $^
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+
+$(INC)/rubik.h: $(INC)/tools.h
+	touch $@
+
+
+$(OBJ)/tools.o: $(SRC)/tools.cpp $(INC)/tools.h
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
 
 # *********************************** Utils ********************************** #
