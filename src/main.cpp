@@ -104,7 +104,7 @@ public:
       * @brief Rotates a face at a specified depth
       * @param face Specifies which face to rotate
       * @param clockwise Specifies the clockwise of the rotation. General cube notation is used
-      * @param depth For cubes with cube_size > 3, rotates external layer for depth 0, 'depth' inner layer for depth > 0
+      * @param depth For cubes with cube_size >= 3, rotates external layer for depth 0, 'depth' inner layer for depth > 0
       */
     void RotateFace(FaceElement face, Clockwise clockwise, size_t depth = 0);
     
