@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstdlib>
+#include <cassert>
 #include <vector>
 #include <array>
 
@@ -159,7 +160,9 @@ void RotateElements(int offset, size_t container_size, Getter get, Setter set);
 int main() {
     RubikCube<3> cube;
     
-    cube.RotateFace(LEFT, COUNTERCLOCKWISE, 0);
+    cube.RotateFace(LEFT, CLOCKWISE, 0);
+    std::cout << cube << std::endl << std::endl;
+    cube.RotateFace(TOP, COUNTERCLOCKWISE, 1);
     std::cout << cube << std::endl;
     
     return 0;
@@ -202,19 +205,19 @@ void RubikCube<CUBE_SIZE>::GetLayerElementCoords(Axis axis, int element_pos, siz
     neg_face_element_pos = CUBE_SIZE-1 - face_element_pos;
     neg_depth = CUBE_SIZE-1 - depth;
     FaceElement face_selector[3][4] = {
-        { BOTTOM,  FRONT,  TOP,    BACK   }, // X axis
-        { BACK,    RIGHT,  FRONT,  LEFT   }, // Y axis
-        { LEFT,    TOP,    RIGHT,  BOTTOM }  // Z axis
+        { TOP,   BACK,   BOTTOM, FRONT }, // X axis
+        { FRONT, LEFT,   BACK,   RIGHT }, // Y axis
+        { RIGHT, BOTTOM, LEFT,   TOP   }  // Z axis
     };
     size_t row_selector[3][4] = {
-        { neg_face_element_pos, neg_face_element_pos, face_element_pos,     face_element_pos     }, // X axis
-        { neg_depth,            neg_depth,            neg_depth,            neg_depth            }, // Y axis
-        { neg_face_element_pos, neg_depth,            face_element_pos,     neg_depth            }  // Z axis
+        { neg_face_element_pos, face_element_pos, neg_face_element_pos, neg_face_element_pos }, // X axis
+        { depth,                depth,            depth,                depth                }, // Y axis
+        { face_element_pos,     depth,            neg_face_element_pos, neg_depth            }  // Z axis
     };
     size_t col_selector[3][4] = {
-        { depth,                depth,                depth,                depth                }, // X axis
-        { face_element_pos,     face_element_pos,     neg_face_element_pos, neg_face_element_pos }, // Y axis
-        { depth,                face_element_pos,     depth,                neg_face_element_pos }  // Z axis
+        { neg_depth,            depth,                neg_depth,            neg_depth            }, // X axis
+        { neg_face_element_pos, neg_face_element_pos, neg_face_element_pos, neg_face_element_pos }, // Y axis
+        { depth,                neg_face_element_pos, neg_depth,            face_element_pos     }  // Z axis
     };
     // Store values
     face = face_selector[(int)axis][element_pos/CUBE_SIZE];
@@ -225,7 +228,23 @@ void RubikCube<CUBE_SIZE>::GetLayerElementCoords(Axis axis, int element_pos, siz
 
 template<size_t CUBE_SIZE>
 void RubikCube<CUBE_SIZE>::GetFaceElementCoords(FaceElement face, int element_pos, size_t padding, size_t &row, size_t &col) {
-    // TODO
+    size_t min = padding;
+    size_t max = CUBE_SIZE-1 - padding;
+    size_t edge_size = max-min;
+    element_pos = positive_mod(element_pos, 4*edge_size);
+    if((size_t)element_pos < edge_size) {
+        row = min;
+        col = min+element_pos;
+    } else if((size_t)element_pos < 2*edge_size) {
+        row = min + (element_pos - edge_size);
+        col = max;
+    } else if((size_t)element_pos < 3*edge_size) {
+        row = max;
+        col = max - (element_pos - 2*edge_size);
+    } else {
+        row = max - (element_pos - 3*edge_size);
+        col = min;
+    }
 }
 
 template<size_t CUBE_SIZE>
@@ -253,11 +272,13 @@ void RubikCube<CUBE_SIZE>::RotateLayer(FaceElement face, Clockwise clockwise, si
     Axis axis = GetAxis(face);
     int offset;
     if(face == FRONT || face == RIGHT || face == TOP) {
-        depth = CUBE_SIZE-1 - depth;
         offset = CUBE_SIZE;
     } else {
-        offset = -CUBE_SIZE;
+        depth = CUBE_SIZE-1 - depth;
+        offset = -(int)CUBE_SIZE;
     }
+    if(clockwise == CLOCKWISE)
+        offset *= -1;
     auto getter = [this, axis, depth](int pos) -> FaceElement {
         return this->GetLayerElement(axis, pos, depth);
     };
@@ -273,17 +294,23 @@ void RubikCube<CUBE_SIZE>::RotateFaceElements(FaceElement face, Clockwise clockw
     // void RotateElements(int offset, size_t container_size, Getter get, Setter set)
     Face &face_matrix = faces[(int)face];
     for(size_t i=0; i<CUBE_SIZE/2; ++i) {
-        size_t border_length = CUBE_SIZE - 2*i;
-        size_t perimeter = 4*(border_length-1);
+        size_t border_length = CUBE_SIZE-1 - 2*i;
+        size_t perimeter = 4*border_length;
         int offset = border_length;
         if(clockwise == CLOCKWISE)
             offset *= -1;
-        auto getter = [](int pos) -> FaceElement {
-            // TODO
-        };
-        auto setter = [](int pos, FaceElement face_elem) {
-            // TODO
-        }
+        // void RubikCube<CUBE_SIZE>::GetFaceElementCoords(FaceElement face, int element_pos, size_t padding, size_t &row, size_t &col)
+        auto getter = [this, face_matrix, face, i](int pos) -> FaceElement {
+                          size_t row, col;
+                          this->GetFaceElementCoords(face, pos, i, row, col);
+                          return face_matrix[row][col];
+                      };
+        auto setter = [this, &face_matrix, face, i](int pos, FaceElement face_elem) {
+                          size_t row, col;
+                          this->GetFaceElementCoords(face, pos, i, row, col);
+                          face_matrix[row][col] = face_elem;
+                          //std::cout << pos << ": " << row << ' ' << col << std::endl;;
+                      };
         RotateElements<FaceElement>(offset, perimeter, getter, setter);
     }
 }
@@ -300,11 +327,11 @@ RubikCube<CUBE_SIZE>::RubikCube() {
 
 template<size_t CUBE_SIZE>
 void RubikCube<CUBE_SIZE>::RotateFace(FaceElement face, Clockwise clockwise, size_t depth) {
-    RotateLayer(face, clockwise, depth);
     if(depth == 0)
         RotateFaceElements(face, clockwise);
     else if(depth+1 == CUBE_SIZE)
         RotateFaceElements(face, !clockwise);
+    RotateLayer(face, clockwise, depth);
 }
 
 template<size_t CUBE_SIZE>
