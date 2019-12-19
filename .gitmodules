@@ -1,0 +1,3 @@
+[submodule "lib/irrlicht"]
+	path = lib/irrlicht
+	url = https://github.com/zaki/irrlicht.git
