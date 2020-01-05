@@ -15,7 +15,8 @@ typedef enum {
     LEFT, 
     RIGHT, 
     TOP, 
-    BOTTOM 
+    BOTTOM,
+    INVALID = -1
 } FaceElement;
 
 template<size_t CUBE_SIZE = 3>

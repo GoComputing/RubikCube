@@ -23,6 +23,22 @@ void RotateElements(int offset, size_t container_size, Getter get, Setter set);
 size_t positive_mod(int numerator, size_t denominator);
 
 
+/**
+  * @brief Returns positive module of numerator and denominator
+  * @pre Denominator isn't zero
+  * @param num Numerator of module
+  * @param den Denominator of module
+  * @return Module of numerator and denominator. It will be always positive and will be in [0, den)
+  */
+double positive_mod(double num, double den);
+
+/**
+  * @brief Get time from epoch, in seconds
+  * @return Returns current time since Epoch, in seconds
+  */
+double get_current_time();
+
+
 
 
 

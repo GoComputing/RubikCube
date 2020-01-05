@@ -42,7 +42,8 @@ run: $(EXEC)
 
 
 # ******************************* Dependencies ******************************* #
-$(BIN)/main: $(OBJ)/main.o $(OBJ)/tools.o $(IRRLICHT_PATH)
+$(BIN)/main: $(OBJ)/main.o $(OBJ)/tools.o $(OBJ)/event_handler.o \
+             $(OBJ)/irrlicht_tools.o $(IRRLICHT_PATH)
 	@echo "Linking executable..."
 	$(CL) $(CLFLAGS) -o $@ $^
 
@@ -52,7 +53,8 @@ $(OBJ)/main.o: $(SRC)/main.cpp $(INC)/graphical_cube.h
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 
-$(INC)/graphical_cube.h: $(INC)/rubik.h $(IRRLICHT_INCLUDE_PATH)/irrlicht.h
+$(INC)/graphical_cube.h: $(INC)/rubik.h $(IRRLICHT_INCLUDE_PATH)/irrlicht.h \
+			 $(INC)/event_handler.h $(INC)/irrlicht_tools.h
 	touch $@
 
 
@@ -60,8 +62,13 @@ $(INC)/rubik.h: $(INC)/tools.h
 	touch $@
 
 
-$(OBJ)/tools.o: $(SRC)/tools.cpp $(INC)/tools.h
+$(INC)/irrlicht_tools.h: $(IRRLICHT_INCLUDE_PATH)/irrlicht.h
+	touch $@
+
+
+$(OBJ)/%.o: $(SRC)/%.cpp $(INC)/%.h
 	$(CXX) $(CXXFLAGS) -o $@ $<
+
 
 .PHONY: $(IRRLICHT_PATH)
 $(IRRLICHT_PATH):
