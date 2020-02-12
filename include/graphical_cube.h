@@ -4,6 +4,7 @@
 #include <rubik.h>
 #include <event_handler.h>
 #include <irrlicht_tools.h>
+#include <array>
 
 using namespace irr;
 using namespace core;
@@ -13,7 +14,7 @@ using namespace io;
 using namespace gui;
 
 template<size_t CUBE_SIZE>
-class GraphicalRubikCube : public RubikCube<CUBE_SIZE> {
+class GraphicalRubikCube : public RubikCube<ISceneNode, CUBE_SIZE> {
 private:
     typedef enum {
                   IDLE,
@@ -44,9 +45,41 @@ private:
     float camera_yaw = 0.0f;
     float camera_pitch_sensitivity = 2.0f;
     float camera_yaw_sensitivity = 2.0f;
+    
     ISceneNode *cube; /* TODO */
+    typedef std::array<std::array<ISceneNode*, CUBE_SIZE>, CUBE_SIZE> FaceMatrix;
+    
+    typedef struct {
+        FaceMatrix elements;
+        ISceneNode *root;
+    } Face;
+    
+    static const int NUM_FACES = 6;
+    // Face ordering is the same as 'FaceElement' enum
+    std::array<Face, NUM_FACES> faces;
+    ISceneNode *rubik_model;
     
 protected:
+    /**
+      * @brief Initializes a face
+      * @param size Size of the face, it will be squared
+      * @param face_id Face to generate
+      * @param initial_id
+      * @param color Color of the face
+      * @param root Root model of the cube. It represents the cube itself
+      * @return result Resulting face
+      * @return ID of the next not used id
+      */
+    int GenerateFace(float size, FaceElement face_id, int initial_id,
+                     const irr::core::vector3df &color, ISceneNode *root, Face &result);
+    
+    /**
+      * @brief Initializes cube faces with default colors
+      * @param size Size of cube, in units of Irrlicht
+      * @return result Resulting faces
+      */
+    void GenerateFaces(float size, std::array<Face, NUM_FACES> &result, int initial_id=0);
+    
     /**
       * @brief Setup scene, including all models, messages, etc
       * @pre Environment and scene manager are initialized
@@ -114,6 +147,27 @@ public:
 
 
 /******* IMPLEMENTATION *******/
+template<size_t CUBE_SIZE>
+int GraphicalRubikCube<CUBE_SIZE>::GenerateFace(float size, FaceElement face_id, int initial_id,
+                                                const irr::core::vector3df &color, ISceneNode *root, Face &result) {
+    /* TODO */
+    return -1;
+}
+
+template<size_t CUBE_SIZE>
+void GraphicalRubikCube<CUBE_SIZE>::GenerateFaces(float size, std::array<Face, NUM_FACES> &result, int initial_id) {
+    std::array<irr::core::vector3df, NUM_FACES> faces_colors =
+        {
+         {0.0f, 1.0f, 0.0f}, // Front
+         {0.0f, 0.0f, 1.0f}, // Back
+         {1.0f, 1.0f, 1.0f}, // Left
+         {1.0f, 1.0f, 0.0f}, // Right
+         {1.0f, 0.0f, 0.0f}, // Top
+         {1.0f, 0.5f, 0.0f}  // Bottom
+        };
+    /* TODO */
+}
+
 template<size_t CUBE_SIZE>
 void GraphicalRubikCube<CUBE_SIZE>::PrepareScene() {
     /* Message */

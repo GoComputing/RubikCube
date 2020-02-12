@@ -19,11 +19,20 @@ typedef enum {
     INVALID = -1
 } FaceElement;
 
-template<size_t CUBE_SIZE = 3>
+template<typename T, size_t CUBE_SIZE = 3>
 class RubikCube {
 private:
+    // Associated face element with an object
+    struct AssocFaceElement {
+        FaceElement element;
+        const T *object;
+        
+        AssocFaceElement()
+            : element(INVALID), object(nullptr) {}
+    };
+    
     // Declares a CUBE_SIZE x CUBE_SIZE matrix of FaceElement
-    typedef std::array<std::array<FaceElement, CUBE_SIZE>, CUBE_SIZE> Face;
+    typedef std::array<std::array<AssocFaceElement, CUBE_SIZE>, CUBE_SIZE> Face;
     
     static const int NUM_FACES = 6;
     std::array<Face, NUM_FACES> faces;
@@ -117,6 +126,35 @@ public:
     FaceElement GetFaceElement(FaceElement face, size_t row, size_t col) const;
     
     /**
+      * @brief Gets the object associated with a face element
+      * @pre There is an object associated with the face element
+      * @param face Specifies the face
+      * @param row Specifies the row of the face
+      * @param col Specifies the column of the face
+      * @return Returns object associated with a face element
+      */
+    const T& GetFaceObject(FaceElement face, size_t row, size_t col) const;
+    
+    /**
+      * @brief Sets the object associated with a face element
+      * @param face Specifies the face
+      * @param row Specifies the row of the face
+      * @param col Specifies the column of the face
+      * @param object Valid object to be associated with the face element
+      */
+    void SetFaceObject(FaceElement face, size_t row, size_t col, const T &object);
+    
+    /**
+      * @brief Gets current coordinates of an object
+      * @pre Object is associated to any face element of the cube
+      * @param object Object to retreive the face element coordinates
+      * @return face Face of the object
+      * @return row Row of the object
+      * @return col Column of the object
+      */
+    void GetObjectFace(const T &object, FaceElement &face, size_t &row, size_t &col) const;
+    
+    /**
       * @brief Get number of faces
       * @return Number of faces
       */
@@ -143,8 +181,9 @@ std::string FaceToString(FaceElement face);
   */
 Clockwise operator!(Clockwise clockwise);
 
-template<size_t CUBE_SIZE>
-std::ostream& operator<<(std::ostream &os, const RubikCube<CUBE_SIZE> &cube);
+
+template<typename T, size_t CUBE_SIZE>
+std::ostream& operator<<(std::ostream &os, const RubikCube<T, CUBE_SIZE> &cube);
 
 
 
@@ -160,8 +199,8 @@ std::ostream& operator<<(std::ostream &os, const RubikCube<CUBE_SIZE> &cube);
 
 
 /********** IMPLEMENTATION **********/
-template<size_t CUBE_SIZE>
-typename RubikCube<CUBE_SIZE>::Axis RubikCube<CUBE_SIZE>::GetAxis(FaceElement face) {
+template<typename T, size_t CUBE_SIZE>
+typename RubikCube<T, CUBE_SIZE>::Axis RubikCube<T, CUBE_SIZE>::GetAxis(FaceElement face) {
     Axis axis;
     if(face == LEFT || face == RIGHT)
         axis = AXIS_X;
@@ -172,8 +211,8 @@ typename RubikCube<CUBE_SIZE>::Axis RubikCube<CUBE_SIZE>::GetAxis(FaceElement fa
     return axis;
 }
 
-template<size_t CUBE_SIZE>
-void RubikCube<CUBE_SIZE>::GetLayerElementCoords(Axis axis, int element_pos, size_t depth, 
+template<typename T, size_t CUBE_SIZE>
+void RubikCube<T, CUBE_SIZE>::GetLayerElementCoords(Axis axis, int element_pos, size_t depth, 
                                                  FaceElement &face, size_t &row, size_t &col) 
 {
     //int TMP = element_pos;
@@ -208,8 +247,8 @@ void RubikCube<CUBE_SIZE>::GetLayerElementCoords(Axis axis, int element_pos, siz
     //std::cout << TMP << ' ' << num_layer_elements << ' ' << element_pos << std::endl;
 }
 
-template<size_t CUBE_SIZE>
-void RubikCube<CUBE_SIZE>::GetFaceElementCoords(FaceElement face, int element_pos, size_t padding, size_t &row, size_t &col) {
+template<typename T, size_t CUBE_SIZE>
+void RubikCube<T, CUBE_SIZE>::GetFaceElementCoords(FaceElement face, int element_pos, size_t padding, size_t &row, size_t &col) {
     size_t min = padding;
     size_t max = CUBE_SIZE-1 - padding;
     size_t edge_size = max-min;
@@ -229,26 +268,26 @@ void RubikCube<CUBE_SIZE>::GetFaceElementCoords(FaceElement face, int element_po
     }
 }
 
-template<size_t CUBE_SIZE>
-FaceElement RubikCube<CUBE_SIZE>::GetLayerElement(Axis axis, int element_pos, size_t depth) {
+template<typename T, size_t CUBE_SIZE>
+FaceElement RubikCube<T, CUBE_SIZE>::GetLayerElement(Axis axis, int element_pos, size_t depth) {
     FaceElement face;
     size_t row, col;
     GetLayerElementCoords(axis, element_pos, depth, face, row, col);
-    return faces[(int)face][row][col];
+    return faces[(int)face][row][col].element;
 }
 
-template<size_t CUBE_SIZE>
-void RubikCube<CUBE_SIZE>::SetLayerElement(Axis axis, int element_pos, size_t depth, FaceElement value) {
+template<typename T, size_t CUBE_SIZE>
+void RubikCube<T, CUBE_SIZE>::SetLayerElement(Axis axis, int element_pos, size_t depth, FaceElement value) {
     FaceElement face;
     size_t row, col;
     GetLayerElementCoords(axis, element_pos, depth, face, row, col);
-    faces[(int)face][row][col] = value;
+    faces[(int)face][row][col].element = value;
     //std::cout << "Element pos: " << element_pos << ", face: " << FaceToString(face) 
     //          << ", row: " << row << ", col: " << col << std::endl;
 }
 
-template<size_t CUBE_SIZE>
-void RubikCube<CUBE_SIZE>::RotateLayer(FaceElement face, Clockwise clockwise, size_t depth) {
+template<typename T, size_t CUBE_SIZE>
+void RubikCube<T, CUBE_SIZE>::RotateLayer(FaceElement face, Clockwise clockwise, size_t depth) {
     assert(depth < CUBE_SIZE);
     
     Axis axis = GetAxis(face);
@@ -270,8 +309,8 @@ void RubikCube<CUBE_SIZE>::RotateLayer(FaceElement face, Clockwise clockwise, si
     RotateElements<FaceElement>(offset, 4*CUBE_SIZE, getter, setter);
 }
 
-template<size_t CUBE_SIZE>
-void RubikCube<CUBE_SIZE>::RotateFaceElements(FaceElement face, Clockwise clockwise) {
+template<typename T, size_t CUBE_SIZE>
+void RubikCube<T, CUBE_SIZE>::RotateFaceElements(FaceElement face, Clockwise clockwise) {
     // template<typename T, typename Getter, typename Setter>
     // void RotateElements(int offset, size_t container_size, Getter get, Setter set)
     Face &face_matrix = faces[(int)face];
@@ -281,34 +320,34 @@ void RubikCube<CUBE_SIZE>::RotateFaceElements(FaceElement face, Clockwise clockw
         int offset = border_length;
         if(clockwise == CLOCKWISE)
             offset *= -1;
-        // void RubikCube<CUBE_SIZE>::GetFaceElementCoords(FaceElement face, int element_pos, size_t padding, size_t &row, size_t &col)
-        auto getter = [this, face_matrix, face, i](int pos) -> FaceElement {
+        // void RubikCube<T, CUBE_SIZE>::GetFaceElementCoords(FaceElement face, int element_pos, size_t padding, size_t &row, size_t &col)
+        auto getter = [this, face_matrix, face, i](int pos) -> AssocFaceElement {
                           size_t row, col;
                           this->GetFaceElementCoords(face, pos, i, row, col);
                           return face_matrix[row][col];
                       };
-        auto setter = [this, &face_matrix, face, i](int pos, FaceElement face_elem) {
+        auto setter = [this, &face_matrix, face, i](int pos, AssocFaceElement face_elem) {
                           size_t row, col;
                           this->GetFaceElementCoords(face, pos, i, row, col);
                           face_matrix[row][col] = face_elem;
                           //std::cout << pos << ": " << row << ' ' << col << std::endl;;
                       };
-        RotateElements<FaceElement>(offset, perimeter, getter, setter);
+        RotateElements<AssocFaceElement>(offset, perimeter, getter, setter);
     }
 }
 
-template<size_t CUBE_SIZE>
-RubikCube<CUBE_SIZE>::RubikCube() {
+template<typename T, size_t CUBE_SIZE>
+RubikCube<T, CUBE_SIZE>::RubikCube() {
     size_t face_id;
     size_t i, j;
     for(face_id=0; face_id<NUM_FACES; ++face_id)
         for(i=0; i<CUBE_SIZE; ++i)
             for(j=0; j<CUBE_SIZE; ++j)
-                faces[face_id][i][j] = (FaceElement)face_id;
+                faces[face_id][i][j].element = (FaceElement)face_id;
 }
 
-template<size_t CUBE_SIZE>
-void RubikCube<CUBE_SIZE>::RotateFace(FaceElement face, Clockwise clockwise, size_t depth) {
+template<typename T, size_t CUBE_SIZE>
+void RubikCube<T, CUBE_SIZE>::RotateFace(FaceElement face, Clockwise clockwise, size_t depth) {
     if(depth == 0)
         RotateFaceElements(face, clockwise);
     else if(depth+1 == CUBE_SIZE)
@@ -316,16 +355,53 @@ void RubikCube<CUBE_SIZE>::RotateFace(FaceElement face, Clockwise clockwise, siz
     RotateLayer(face, clockwise, depth);
 }
 
-template<size_t CUBE_SIZE>
-FaceElement RubikCube<CUBE_SIZE>::GetFaceElement(FaceElement face, size_t row, size_t col) const {
+template<typename T, size_t CUBE_SIZE>
+FaceElement RubikCube<T, CUBE_SIZE>::GetFaceElement(FaceElement face, size_t row, size_t col) const {
     assert(face >= 0 && face < NUM_FACES);
     assert(row < CUBE_SIZE);
     assert(col < CUBE_SIZE);
-    return faces[(size_t)face][row][col];
+    return faces[(size_t)face][row][col].element;
 }
 
-template<size_t CUBE_SIZE>
-size_t RubikCube<CUBE_SIZE>::GetNumFaces() const {
+template<typename T, size_t CUBE_SIZE>
+const T& RubikCube<T, CUBE_SIZE>::GetFaceObject(FaceElement face, size_t row, size_t col) const {
+    assert(face >= 0 && face < NUM_FACES);
+    assert(row < CUBE_SIZE);
+    assert(col < CUBE_SIZE);
+    const T *object = faces[(size_t)face][row][col].object;
+    assert(object != nullptr);
+    return *object;
+}
+
+template<typename T, size_t CUBE_SIZE>
+void RubikCube<T, CUBE_SIZE>::SetFaceObject(FaceElement face, size_t row, size_t col, const T &object) {
+    assert(face >= 0);
+    assert(row < CUBE_SIZE);
+    assert(col < CUBE_SIZE);
+    faces[(size_t)face][row][col].object = &object;
+}
+
+template<typename T, size_t CUBE_SIZE>
+void RubikCube<T, CUBE_SIZE>::GetObjectFace(const T &object, FaceElement &face, size_t &row, size_t &col) const {
+    size_t i, j, k;
+    bool found = false;
+    for(i=0; i<NUM_FACES && !found; ++i) {
+        for(j=0; j<CUBE_SIZE && !found; ++j) {
+            for(k=0; k<CUBE_SIZE && !found; ++k) {
+                found = faces[i][j][k].object == &object;
+                if(found) {
+                    face = (FaceElement)i;
+                    row = j;
+                    col = k;
+                }
+            } // End column for
+        } // End row for
+    } // End face for
+    assert(found);
+}
+
+template<typename T, size_t CUBE_SIZE>
+size_t RubikCube<T, CUBE_SIZE>::GetNumFaces() const {
     return NUM_FACES;
 }
 
@@ -365,8 +441,8 @@ Clockwise operator!(Clockwise clockwise) {
     return clockwise;
 }
 
-template<size_t CUBE_SIZE>
-std::ostream& operator<<(std::ostream &os, const RubikCube<CUBE_SIZE> &cube) {
+template<typename T, size_t CUBE_SIZE>
+std::ostream& operator<<(std::ostream &os, const RubikCube<T, CUBE_SIZE> &cube) {
     size_t face_id;
     size_t row;
     size_t col;
