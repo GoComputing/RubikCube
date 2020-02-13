@@ -26,3 +26,8 @@ void SetCameraAngles(irr::scene::ICameraSceneNode *camera, float pitch, float ya
     camera->updateAbsolutePosition();
     camera->setTarget(target);
 }
+
+std::ostream& operator<<(std::ostream &os, const irr::video::SColor &color) {
+    os << '{' << color.getRed() << ", " << color.getGreen() << ", " << color.getBlue() << ", " << color.getAlpha() << '}';
+    return os;
+}

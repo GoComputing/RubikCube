@@ -9,16 +9,24 @@ typedef enum {
 } Clockwise;
 
 /*    Face of the cube. Total: 6    */
-typedef enum { 
-    FRONT = 0, 
-    BACK, 
-    LEFT, 
-    RIGHT, 
-    TOP, 
-    BOTTOM,
-    INVALID = -1
-} FaceElement;
+typedef enum
+    { 
+     FRONT = 0, // ORDER IS PART OF THE INTERFACE. DON'T CHANGE IT
+     BACK, 
+     LEFT, 
+     RIGHT, 
+     TOP, 
+     BOTTOM,
+     INVALID = -1
+    } FaceElement;
 
+/**
+  * @brief Class that represents a rubik cube
+  *
+  * Representation: six faces. Each face has CUBE_SIZE rows and CUBE_SIZE columnts.
+  * row and columnt starts from top left corner of the face. Seen as would be seen in a rotation of a face. 
+  * For example, LEFT face should be rotated 90 degrees around Y axis (vertial axis).
+  */
 template<typename T, size_t CUBE_SIZE = 3>
 class RubikCube {
 private:
@@ -152,7 +160,7 @@ public:
       * @return row Row of the object
       * @return col Column of the object
       */
-    void GetObjectFace(const T &object, FaceElement &face, size_t &row, size_t &col) const;
+    void GetObjectCoordinates(const T &object, FaceElement &face, size_t &row, size_t &col) const;
     
     /**
       * @brief Get number of faces
@@ -382,7 +390,7 @@ void RubikCube<T, CUBE_SIZE>::SetFaceObject(FaceElement face, size_t row, size_t
 }
 
 template<typename T, size_t CUBE_SIZE>
-void RubikCube<T, CUBE_SIZE>::GetObjectFace(const T &object, FaceElement &face, size_t &row, size_t &col) const {
+void RubikCube<T, CUBE_SIZE>::GetObjectCoordinates(const T &object, FaceElement &face, size_t &row, size_t &col) const {
     size_t i, j, k;
     bool found = false;
     for(i=0; i<NUM_FACES && !found; ++i) {

@@ -2,7 +2,7 @@
 #include <iostream>
 
 int main() {
-    GraphicalRubikCube<3> cube = GraphicalRubikCube<3>(L"Rubik Cube", 512, 512);
+    GraphicalRubikCube<3> cube = GraphicalRubikCube<3>(L"Rubik Cube", 512, 512, 1.0);
     
     cube.RotateFace(LEFT, CLOCKWISE, 0);
     std::cout << cube << std::endl << std::endl;

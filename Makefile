@@ -23,9 +23,10 @@ IRRLICHT_CLFLAGS = -L$(IRRLICHT_HOME)/lib/Linux -L/usr/X11R6/lib -lIrrlicht \
 
 # ************************** Compile/link parameters ************************* #
 CXX = g++
-CXXFLAGS = -I$(INC) $(IRRLICHT_CXXFLAGS) -c
+CXXFLAGS = -I$(INC) $(IRRLICHT_CXXFLAGS) -c -g
 CL = g++
 CLFLAGS = $(IRRLICHT_CLFLAGS)
+GDB = gdb
 
 
 # **************************** General parameters **************************** #
@@ -39,6 +40,9 @@ all: $(EXEC)
 
 run: $(EXEC)
 	./$(EXEC) $(EXEC_PARAMS)
+
+debug: $(EXEC)
+	$(GDB) --args $(EXEC) $(EXEC_PARAMS)
 
 
 # ******************************* Dependencies ******************************* #

@@ -14,7 +14,7 @@ using namespace io;
 using namespace gui;
 
 template<size_t CUBE_SIZE>
-class GraphicalRubikCube : public RubikCube<ISceneNode, CUBE_SIZE> {
+class GraphicalRubikCube : public RubikCube<ISceneNode*, CUBE_SIZE> {
 private:
     typedef enum {
                   IDLE,
@@ -26,7 +26,7 @@ private:
         irr::core::position2di cursor_pos;
     } StateVariables;
     
-    static constexpr double CAMERA_DISTANCE = 40.0;
+    static constexpr double CAMERA_DISTANCE = 2.0;
     
     double frame_duration = 0.0f;
     double last_time = 0.0f;
@@ -46,45 +46,32 @@ private:
     float camera_pitch_sensitivity = 2.0f;
     float camera_yaw_sensitivity = 2.0f;
     
-    ISceneNode *cube; /* TODO */
-    typedef std::array<std::array<ISceneNode*, CUBE_SIZE>, CUBE_SIZE> FaceMatrix;
-    
-    typedef struct {
-        FaceMatrix elements;
-        ISceneNode *root;
-    } Face;
-    
-    static const int NUM_FACES = 6;
-    // Face ordering is the same as 'FaceElement' enum
-    std::array<Face, NUM_FACES> faces;
-    ISceneNode *rubik_model;
+    static constexpr int NUM_FACES = 6;
+    int initial_cube_id = 0;
+    // Center of cube
+    ISceneNode *cube;
+    // Can be indexed by ID assigned to ISceneNode face element, if you substract ID by initial_cube_id (eg. faces_element_nodes[ID-initial_cube_id])
+    std::array<ISceneNode*, NUM_FACES*CUBE_SIZE*CUBE_SIZE> faces_element_nodes;
+    // Materials of each face, ordered by FaceElement enum
+    std::array<irr::video::SMaterial*, NUM_FACES> faces_element_materials;
     
 protected:
     /**
-      * @brief Initializes a face
-      * @param size Size of the face, it will be squared
-      * @param face_id Face to generate
-      * @param initial_id
-      * @param color Color of the face
-      * @param root Root model of the cube. It represents the cube itself
-      * @return result Resulting face
-      * @return ID of the next not used id
+      * @brief Initializes 'faces_element_materials' attribute. Here you can find face colors, and reflexive properties
       */
-    int GenerateFace(float size, FaceElement face_id, int initial_id,
-                     const irr::core::vector3df &color, ISceneNode *root, Face &result);
+    void InitializeFacesColors();
     
     /**
       * @brief Initializes cube faces with default colors
       * @param size Size of cube, in units of Irrlicht
-      * @return result Resulting faces
       */
-    void GenerateFaces(float size, std::array<Face, NUM_FACES> &result, int initial_id=0);
+    void GenerateFaces(float cube_length, ISceneNode *parent, int initial_id=0);
     
     /**
       * @brief Setup scene, including all models, messages, etc
       * @pre Environment and scene manager are initialized
       */
-    void PrepareScene();
+    void PrepareScene(float cube_length);
     
     /**
       * @brief Reads current state of the frame. It is used by state machine.
@@ -117,6 +104,13 @@ protected:
       */
     void SelectedFace(const irr::core::position2di &pos, FaceElement &face, irr::core::position2di &coords);
     
+    /**
+      * @brief Get face element coordinates from ID assigned to Irrlicht ISceneNode
+      * @param id ID assigned to Irrlicht ISceneNode
+      * @return Coordinates are returned to 'face', 'row', and 'col'
+      */
+    void GetCoordsFromID(int id, FaceElement &face, int &row, int &col) const;
+    
 public:
     /**
       * @brief Creates a graphical environment which will show a rubik cube 
@@ -124,7 +118,7 @@ public:
       * @param width Width of the window, in pixels
       * @param height Height of the window, in pixels
       */
-    GraphicalRubikCube(const std::wstring &window_title, size_t width, size_t height);
+    GraphicalRubikCube(const std::wstring &window_title, size_t width, size_t height, float cube_length);
     
     /**
       * @brief It frees resources */
@@ -148,40 +142,119 @@ public:
 
 /******* IMPLEMENTATION *******/
 template<size_t CUBE_SIZE>
-int GraphicalRubikCube<CUBE_SIZE>::GenerateFace(float size, FaceElement face_id, int initial_id,
-                                                const irr::core::vector3df &color, ISceneNode *root, Face &result) {
-    /* TODO */
-    return -1;
-}
-
-template<size_t CUBE_SIZE>
-void GraphicalRubikCube<CUBE_SIZE>::GenerateFaces(float size, std::array<Face, NUM_FACES> &result, int initial_id) {
-    std::array<irr::core::vector3df, NUM_FACES> faces_colors =
+void GraphicalRubikCube<CUBE_SIZE>::InitializeFacesColors() {
+    // Colors. Format ARGB. Range [0, 255]
+    std::array<irr::video::SColor, NUM_FACES> faces_colors =
         {
-         {0.0f, 1.0f, 0.0f}, // Front
-         {0.0f, 0.0f, 1.0f}, // Back
-         {1.0f, 1.0f, 1.0f}, // Left
-         {1.0f, 1.0f, 0.0f}, // Right
-         {1.0f, 0.0f, 0.0f}, // Top
-         {1.0f, 0.5f, 0.0f}  // Bottom
+         irr::video::SColor {255,   0, 255,   0}, // Front
+         irr::video::SColor {255,   0,   0, 255}, // Back
+         irr::video::SColor {255, 255, 255, 255}, // Left
+         irr::video::SColor {255, 255, 255,   0}, // Right
+         irr::video::SColor {255, 255,   0,   0}, // Top
+         irr::video::SColor {255, 255, 128,   0}  // Bottom
         };
-    /* TODO */
+    // Initialize materials
+    for(int i=0; i<NUM_FACES; ++i) {
+        irr::video::SMaterial *material = new irr::video::SMaterial();
+        
+        // Set material properties
+        //material->setFlag(EMF_GOURAUD_SHADING, false);
+        material->setFlag(EMF_LIGHTING, true);
+        material->setFlag(EMF_FRONT_FACE_CULLING, false);
+        material->setFlag(EMF_BACK_FACE_CULLING, false);
+        material->setFlag(EMF_ANISOTROPIC_FILTER, false);
+        material->setFlag(EMF_ANTI_ALIASING, false);
+        material->setFlag(EMF_COLOR_MATERIAL, true);
+        material->setFlag(EMF_USE_MIP_MAPS, false);
+        
+        // Set material colors
+        material->AmbientColor = faces_colors[i];
+        material->DiffuseColor = faces_colors[i];
+        material->SpecularColor = faces_colors[i];
+        material->EmissiveColor = faces_colors[i];
+        material->Shininess = 20.0f;
+        
+        // Save value
+        faces_element_materials[i] = material;
+    }
 }
 
 template<size_t CUBE_SIZE>
-void GraphicalRubikCube<CUBE_SIZE>::PrepareScene() {
+void GraphicalRubikCube<CUBE_SIZE>::GenerateFaces(float cube_length, ISceneNode *parent, int initial_id) {
+    initial_cube_id = initial_id;
+    
+    InitializeFacesColors();
+    // Initialize meshes
+    const IGeometryCreator *creator = smgr->getGeometryCreator();
+    float element_size = cube_length / CUBE_SIZE;
+    core::dimension2d<float> element_dim = {element_size, element_size};
+    core::dimension2d<unsigned int> tiles_per_element = {1, 1};
+    
+    float min_val = -cube_length * 0.5f;
+    float max_val =  cube_length * 0.5f;
+    
+    // Yaw, pitch, roll
+    std::array<irr::core::vector3df, NUM_FACES> rotation_table =
+        {
+         irr::core::vector3df { 90.0f, 0.0f,   0.0f}, // Front
+         irr::core::vector3df {270.0f, 0.0f,   0.0f}, // Back
+         irr::core::vector3df {  0.0f, 0.0f,  90.0f}, // Left
+         irr::core::vector3df {  0.0f, 0.0f, 270.0f}, // Right
+         irr::core::vector3df {  0.0f, 0.0f,   0.0f}, // Top
+         irr::core::vector3df {  0.0f, 0.0f, 180.0f}  // Bottom
+        };
+    
+    for(int i = 0; i < faces_element_nodes.size(); ++i) {
+        FaceElement face;
+        int face_id;
+        int row;
+        int col;
+        float pos_row;
+        float pos_col;
+        float x, y, z;
+        irr::core::vector3df position;
+        irr::core::vector3df rotation;
+        irr::core::vector3df scale = {0.9f, 0.9f, 0.9f};
+        
+        GetCoordsFromID(i, face, row, col);
+        face_id = (int)face;
+        
+        pos_row = cube_length * (float)row / (float)CUBE_SIZE - cube_length*0.5f + element_size*0.5f;
+        pos_col = cube_length * (float)col / (float)CUBE_SIZE - cube_length*0.5f + element_size*0.5f;
+        
+        switch(face_id) {
+        case 0:  x = -pos_col; y =  pos_row; z =  max_val; break; // Front
+        case 1:  x =  pos_col; y =  pos_row; z =  min_val; break; // Back
+        case 2:  x =  max_val; y =  pos_row; z =  pos_col; break; // Left
+        case 3:  x =  min_val; y =  pos_row; z = -pos_col; break; // Right
+        case 4:  x = -pos_col; y =  max_val; z =  pos_row; break; // Top
+        case 5:  x = -pos_col; y =  min_val; z = -pos_row; break; // Bottom
+        default: assert(false);
+        }
+        
+        position = irr::core::vector3df {x, y, z};
+        rotation = rotation_table[face_id];
+        irr::scene::IMesh* plane = creator->createPlaneMesh(element_dim, tiles_per_element, faces_element_materials[face_id]);
+        faces_element_nodes[i] = smgr->addMeshSceneNode(plane, parent, initial_cube_id+i, position, rotation, scale);
+        
+        this->SetFaceObject(face, row, col, faces_element_nodes[i]);
+    }
+}
+
+template<size_t CUBE_SIZE>
+void GraphicalRubikCube<CUBE_SIZE>::PrepareScene(float cube_length) {
     /* Message */
     guienv->addStaticText(L"Hello World! This is Irrlicht with the burnings software renderer!",
                           rect<s32>(10,10,260,22), true);
     
     
     /* Models */
-    /* TODO */
-    cube = smgr->addCubeSceneNode();
+    cube = smgr->addEmptySceneNode();
+    GenerateFaces(cube_length, cube);
     
     
     /* Camera */
-    camera = smgr->addCameraSceneNode(0, vector3df(0,0,-40));
+    camera = smgr->addCameraSceneNode(0, vector3df(0,0,-2*cube_length));
     camera->bindTargetAndRotation(true);
     SetCameraAngles(camera, 0.0f, 0.0f, cube->getPosition(), CAMERA_DISTANCE);
 }
@@ -267,7 +340,17 @@ GraphicalRubikCube<CUBE_SIZE>::SelectedFace(const irr::core::position2di &pos,
 }
 
 template<size_t CUBE_SIZE>
-GraphicalRubikCube<CUBE_SIZE>::GraphicalRubikCube(const std::wstring &window_title, size_t width, size_t height) {
+void GraphicalRubikCube<CUBE_SIZE>::GetCoordsFromID(int id, FaceElement &face, int &row, int &col) const {
+    int face_id = (id-initial_cube_id) / (CUBE_SIZE*CUBE_SIZE);
+    int element_id = (id-initial_cube_id) % (CUBE_SIZE*CUBE_SIZE);
+    assert(face_id >= 0 && face_id < NUM_FACES*CUBE_SIZE*CUBE_SIZE);
+    face = (FaceElement)face_id;
+    row = element_id / CUBE_SIZE;
+    col = element_id % CUBE_SIZE;
+}
+
+template<size_t CUBE_SIZE>
+GraphicalRubikCube<CUBE_SIZE>::GraphicalRubikCube(const std::wstring &window_title, size_t width, size_t height, float cube_length) {
     curr_state = IDLE;
     last_time = get_current_time();
     
@@ -287,12 +370,14 @@ GraphicalRubikCube<CUBE_SIZE>::GraphicalRubikCube(const std::wstring &window_tit
     guienv = device->getGUIEnvironment();
     
     /* Prepare scene */
-    PrepareScene();
+    PrepareScene(cube_length);
 }
 
 template<size_t CUBE_SIZE>
 GraphicalRubikCube<CUBE_SIZE>::~GraphicalRubikCube() {
     device->drop();
+    for(int i=0; i<faces_element_materials.size(); ++i)
+        delete faces_element_materials[i];
 }
 
 template<size_t CUBE_SIZE>
