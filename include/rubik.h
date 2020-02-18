@@ -396,7 +396,7 @@ void RubikCube<T, CUBE_SIZE>::GetObjectCoordinates(const T &object, FaceElement 
     for(i=0; i<NUM_FACES && !found; ++i) {
         for(j=0; j<CUBE_SIZE && !found; ++j) {
             for(k=0; k<CUBE_SIZE && !found; ++k) {
-                found = faces[i][j][k].object == &object;
+                found = *faces[i][j][k].object == object;
                 if(found) {
                     face = (FaceElement)i;
                     row = j;
@@ -418,12 +418,13 @@ size_t RubikCube<T, CUBE_SIZE>::GetNumFaces() const {
 std::string FaceToString(FaceElement face) {
     std::string str;
     switch(face) {
-    case FRONT:  str = "front";  break;
-    case BACK:   str = "back";   break;
-    case LEFT:   str = "left";   break;
-    case RIGHT:  str = "right";  break;
-    case TOP:    str = "top";    break;
-    case BOTTOM: str = "bottom"; break;
+    case FRONT:  str = "front";   break;
+    case BACK:   str = "back";    break;
+    case LEFT:   str = "left";    break;
+    case RIGHT:  str = "right";   break;
+    case TOP:    str = "top";     break;
+    case BOTTOM: str = "bottom";  break;
+    default:     str = "invalid"; break;
     }
     return str;
 }
@@ -432,11 +433,12 @@ std::string FaceElementToString(FaceElement face_element) {
     std::string str;
     switch(face_element) {
     case FRONT:  str = "F";  break;
-    case BACK:   str = "B";   break;
-    case LEFT:   str = "L";   break;
+    case BACK:   str = "B";  break;
+    case LEFT:   str = "L";  break;
     case RIGHT:  str = "R";  break;
-    case TOP:    str = "U";    break;
-    case BOTTOM: str = "D"; break;
+    case TOP:    str = "U";  break;
+    case BOTTOM: str = "D";  break;
+    default:     str = "I";  break;
     }
     return str;
 }

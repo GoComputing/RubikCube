@@ -36,7 +36,7 @@ private:
     ISceneManager* smgr;
     IGUIEnvironment* guienv;
     RubikCubeEventHandler event_handler;
-
+    
     State curr_state;
     StateVariables curr_state_variables;
     
@@ -102,7 +102,7 @@ protected:
       * @return face: Selected face, or INVALID if any face is selected
       * @return coords: Coordinates of the element in the selected face. Only valid if 'face' isn't INVALID
       */
-    void SelectedFace(const irr::core::position2di &pos, FaceElement &face, irr::core::position2di &coords);
+    FaceElement SelectedFace(const irr::core::position2di &pos);
     
     /**
       * @brief Get face element coordinates from ID assigned to Irrlicht ISceneNode
@@ -236,6 +236,8 @@ void GraphicalRubikCube<CUBE_SIZE>::GenerateFaces(float cube_length, ISceneNode 
         rotation = rotation_table[face_id];
         irr::scene::IMesh* plane = creator->createPlaneMesh(element_dim, tiles_per_element, faces_element_materials[face_id]);
         faces_element_nodes[i] = smgr->addMeshSceneNode(plane, parent, initial_cube_id+i, position, rotation, scale);
+        ITriangleSelector *triangle_selector = smgr->createTriangleSelector(plane, faces_element_nodes[i]);
+        faces_element_nodes[i]->setTriangleSelector(triangle_selector);
         
         this->SetFaceObject(face, row, col, faces_element_nodes[i]);
     }
@@ -273,9 +275,8 @@ void GraphicalRubikCube<CUBE_SIZE>::UpdateEvents() {
     StateVariables next_state_variables = ReadState();
     State next_state;
     FaceElement selected;
-    irr::core::position2di coords;
     
-    SelectedFace(curr_state_variables.cursor_pos, selected, coords);
+    selected = SelectedFace(curr_state_variables.cursor_pos);
     
     switch(curr_state) {
     case IDLE:
@@ -331,12 +332,37 @@ void GraphicalRubikCube<CUBE_SIZE>::UpdateRotateLayer(const StateVariables &next
 }
 
 template<size_t CUBE_SIZE>
-void
-GraphicalRubikCube<CUBE_SIZE>::SelectedFace(const irr::core::position2di &pos,
-                                            FaceElement &face,
-                                            irr::core::position2di &coords) {
+FaceElement GraphicalRubikCube<CUBE_SIZE>::SelectedFace(const irr::core::position2di &pos) {
+    ISceneCollisionManager *picker = smgr->getSceneCollisionManager();
+    irr::core::line3d<float> intersect_ray = picker->getRayFromScreenCoordinates(pos, camera);
+    ISceneNode *selected;
+    irr::core::vector3df collision_point;
+    irr::core::triangle3df triangle;
+    size_t row, col;
+    FaceElement face_element;
+    FaceElement face;
+    
+    // Gets selected scene node from screen coordinates
+    selected = picker->getSceneNodeAndCollisionPointFromRay(intersect_ray,
+                                                            collision_point,
+                                                            triangle,
+                                                            0,
+                                                            cube);
+    
+    if(selected != nullptr)
+        this->GetObjectCoordinates(selected, face_element, row, col);
+    else
+        face_element = INVALID;
+    
     /* TODO */
+    // Gets selected face from face element, row and column. For example,
+    // if front face element is selected, row is 0 and column is 1 (3x3 rubik cube),
+    // selected face is top
+    
     face = INVALID;
+    std::cout << FaceToString(face_element) << std::endl;
+    
+    return face;
 }
 
 template<size_t CUBE_SIZE>
