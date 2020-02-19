@@ -17,7 +17,7 @@ typedef enum
      RIGHT, 
      TOP, 
      BOTTOM,
-     INVALID = -1
+     INVALID
     } FaceElement;
 
 /**
@@ -189,9 +189,18 @@ std::string FaceToString(FaceElement face);
   */
 Clockwise operator!(Clockwise clockwise);
 
+/**
+  * @brief Return the opposite face
+  * @param face to be negated
+  * @return Opposite face. If 'face' is INVALID, this operator will return INVALID
+  */
+FaceElement operator!(FaceElement face);
+
 
 template<typename T, size_t CUBE_SIZE>
 std::ostream& operator<<(std::ostream &os, const RubikCube<T, CUBE_SIZE> &cube);
+
+std::ostream& operator<<(std::ostream &os, Clockwise clockwise);
 
 
 
@@ -451,6 +460,18 @@ Clockwise operator!(Clockwise clockwise) {
     return clockwise;
 }
 
+FaceElement operator!(FaceElement face) {
+    switch(face) {
+    case FRONT:  face = BACK;   break;
+    case BACK:   face = FRONT;  break;
+    case LEFT:   face = RIGHT;  break;
+    case RIGHT:  face = LEFT;   break;
+    case TOP:    face = BOTTOM; break;
+    case BOTTOM: face = TOP;    break;
+    }
+    return face;
+}
+
 template<typename T, size_t CUBE_SIZE>
 std::ostream& operator<<(std::ostream &os, const RubikCube<T, CUBE_SIZE> &cube) {
     size_t face_id;
@@ -466,3 +487,17 @@ std::ostream& operator<<(std::ostream &os, const RubikCube<T, CUBE_SIZE> &cube) 
     }
     return os;
 }
+
+std::ostream& operator<<(std::ostream &os, Clockwise clockwise) {
+    switch(clockwise) {
+    case CLOCKWISE:
+        os << "CW"; break;
+    case COUNTERCLOCKWISE:
+        os << "CCW"; break;
+    default:
+        os << "INVALID_CW";
+    }
+    return os;
+}
+
+

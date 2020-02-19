@@ -5,6 +5,7 @@
 #include <event_handler.h>
 #include <irrlicht_tools.h>
 #include <array>
+#include <unordered_map>
 
 using namespace irr;
 using namespace core;
@@ -97,12 +98,31 @@ protected:
     void UpdateRotateLayer(const StateVariables &next);
     
     /**
-      * @brief Returns selected face, or invalid if any face is selected
-      * @param pos Position, in pixels
-      * @return face: Selected face, or INVALID if any face is selected
-      * @return coords: Coordinates of the element in the selected face. Only valid if 'face' isn't INVALID
+      * @brief Returns face element which is in 'pos' position (screen coordinates), or invalid if any face is pointed
+      * @param pos Position, in screen space
+      * @return face_element: Selected face, or INVALID if any face is selected
+      * @return row: Row of the face element. It is valid only if face_element isn't INVALID
+      * @return col: Column of the face element. It is valid only if face_element isn't INVALID
       */
-    FaceElement SelectedFace(const irr::core::position2di &pos);
+    void PointedFaceElement(const irr::core::position2di &pos, FaceElement &face_element, size_t &row, size_t &col);
+    
+    /**
+      * @brief Returns face associated with a face element, which is in row and column
+      * @pre face_element is a valid face element. Row and col is in range [0, CUBE_SIZE)
+      * @param face_element Selected face element
+      * @param row Row of the selected face element
+      * @param col Column of the selected face element
+      * @return Selected face in 'face' and 'depth'. For example, is face_element is FRONT, row is 0, col is 1 and CUBE_SIZE is 3, 
+      *         selected face is RIGHT, depth is 1 and clockwise CLOCKWISE
+      */
+    void SelectedFace(FaceElement face_element, size_t row, size_t col, FaceElement &face, size_t &depth, Clockwise &clockwise);
+    
+    /**
+      * @brief Returns face pointed by 'pos'
+      * @param pos Position, in screen space
+      * @return Selected face, or INVALID if any face is selected. Depth will be valid only if 'face' isn't INVALID. Preference values are determined by 'Selected Face'
+      */
+    void PointedFace(const irr::core::position2di &pos, FaceElement &face, size_t &depth, Clockwise &clockwise);
     
     /**
       * @brief Get face element coordinates from ID assigned to Irrlicht ISceneNode
@@ -223,10 +243,10 @@ void GraphicalRubikCube<CUBE_SIZE>::GenerateFaces(float cube_length, ISceneNode 
         pos_col = cube_length * (float)col / (float)CUBE_SIZE - cube_length*0.5f + element_size*0.5f;
         
         switch(face_id) {
-        case 0:  x = -pos_col; y =  pos_row; z =  max_val; break; // Front
-        case 1:  x =  pos_col; y =  pos_row; z =  min_val; break; // Back
-        case 2:  x =  max_val; y =  pos_row; z =  pos_col; break; // Left
-        case 3:  x =  min_val; y =  pos_row; z = -pos_col; break; // Right
+        case 0:  x = -pos_col; y = -pos_row; z =  max_val; break; // Front
+        case 1:  x =  pos_col; y = -pos_row; z =  min_val; break; // Back
+        case 2:  x =  max_val; y = -pos_col; z = -pos_row; break; // Left
+        case 3:  x =  min_val; y = -pos_row; z = -pos_col; break; // Right
         case 4:  x = -pos_col; y =  max_val; z =  pos_row; break; // Top
         case 5:  x = -pos_col; y =  min_val; z = -pos_row; break; // Bottom
         default: assert(false);
@@ -275,8 +295,10 @@ void GraphicalRubikCube<CUBE_SIZE>::UpdateEvents() {
     StateVariables next_state_variables = ReadState();
     State next_state;
     FaceElement selected;
+    size_t depth;
+    Clockwise clockwise;
     
-    selected = SelectedFace(curr_state_variables.cursor_pos);
+    PointedFace(curr_state_variables.cursor_pos, selected, depth, clockwise);
     
     switch(curr_state) {
     case IDLE:
@@ -332,15 +354,12 @@ void GraphicalRubikCube<CUBE_SIZE>::UpdateRotateLayer(const StateVariables &next
 }
 
 template<size_t CUBE_SIZE>
-FaceElement GraphicalRubikCube<CUBE_SIZE>::SelectedFace(const irr::core::position2di &pos) {
+void GraphicalRubikCube<CUBE_SIZE>::PointedFaceElement(const irr::core::position2di &pos, FaceElement &face_element, size_t &row, size_t &col) {
     ISceneCollisionManager *picker = smgr->getSceneCollisionManager();
     irr::core::line3d<float> intersect_ray = picker->getRayFromScreenCoordinates(pos, camera);
     ISceneNode *selected;
     irr::core::vector3df collision_point;
     irr::core::triangle3df triangle;
-    size_t row, col;
-    FaceElement face_element;
-    FaceElement face;
     
     // Gets selected scene node from screen coordinates
     selected = picker->getSceneNodeAndCollisionPointFromRay(intersect_ray,
@@ -353,16 +372,108 @@ FaceElement GraphicalRubikCube<CUBE_SIZE>::SelectedFace(const irr::core::positio
         this->GetObjectCoordinates(selected, face_element, row, col);
     else
         face_element = INVALID;
+}
+
+template<size_t CUBE_SIZE>
+void GraphicalRubikCube<CUBE_SIZE>::SelectedFace(FaceElement face_element, size_t row, size_t col, FaceElement &face, size_t &depth, Clockwise &clockwise) {
+    assert(face_element >= 0 && face_element < INVALID);
+    assert(row >= 0 && row < CUBE_SIZE);
+    assert(col >= 0 && col < CUBE_SIZE);
     
     /* TODO */
     // Gets selected face from face element, row and column. For example,
     // if front face element is selected, row is 0 and column is 1 (3x3 rubik cube),
     // selected face is top
     
-    face = INVALID;
-    std::cout << FaceToString(face_element) << std::endl;
+    bool l_row = row == 0;           // Low row
+    bool h_row = row+1 == CUBE_SIZE; // High row
+    bool l_col = col == 0;           // Low column
+    bool h_col = col+1 == CUBE_SIZE; // High column
     
-    return face;
+    std::unordered_map<FaceElement, FaceElement> left_faces =
+        {
+         {FRONT,  LEFT},
+         {BACK,   RIGHT},
+         {LEFT,   BACK},
+         {RIGHT,  FRONT},
+         {TOP,    LEFT},
+         {BOTTOM, LEFT}
+        };
+    
+    std::unordered_map<FaceElement, FaceElement> top_faces =
+        {
+         {FRONT,  TOP},
+         {BACK,   TOP},
+         {LEFT,   TOP},
+         {RIGHT,  TOP},
+         {TOP,    BACK},
+         {BOTTOM, FRONT}
+        };
+    
+    if(!l_row && !h_row && !l_col && !h_col) {
+        // Face element is a middle element, so there are multiple options. We don't have enough data to calculate face, so face is INVALID
+        face = INVALID;
+    } else if((l_row && l_col) || (l_row && h_col) || (h_row && l_col) || (h_row && h_col)) {
+        // Face element is in a corner
+        
+        // Clockwise
+        if(row == col)
+            clockwise = COUNTERCLOCKWISE;
+        else
+            clockwise = CLOCKWISE;
+        
+        // Face
+        if(face_element == TOP || face_element == BOTTOM) {
+            clockwise = !clockwise;
+            
+            if(l_row)
+                face = top_faces[face_element];
+            else
+                face = !top_faces[face_element];
+        } else {
+            if(l_col)
+                face = left_faces[face_element];
+            else
+                face = !left_faces[face_element]; // Opposite face ('right_faces')
+        }
+        
+        // Depth
+        depth = 0;
+    } else {
+        // Face element is in a external layer
+        
+        // Clockwise
+        if(l_row || l_col)
+            clockwise = CLOCKWISE;
+        else
+            clockwise = COUNTERCLOCKWISE;
+        
+        // Face and depth
+        if(l_row || h_row) {
+            face = !left_faces[face_element]; // 'right_faces'
+            depth = CUBE_SIZE-1 - col; // From 'right' face perspective
+        } else {
+            face = top_faces[face_element];
+            depth = row; // From 'top' perspective
+        }
+    }
+    
+    std::cout << FaceToString(face) << ", Depth: " << depth << ", " << clockwise << std::endl;
+}
+
+template<size_t CUBE_SIZE>
+void GraphicalRubikCube<CUBE_SIZE>::PointedFace(const irr::core::position2di &pos, FaceElement &face, size_t &depth, Clockwise &clockwise) {
+    FaceElement face_element;
+    size_t row, col;
+    
+    // Gets face element
+    this->PointedFaceElement(pos, face_element, row, col);
+    
+    // SelectedFace should be called only if face_element isn't invalid
+    if(face_element != INVALID)
+        this->SelectedFace(face_element, row, col, face, depth, clockwise);
+    else
+        face = INVALID;
 }
 
 template<size_t CUBE_SIZE>
