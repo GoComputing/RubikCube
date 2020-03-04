@@ -2,12 +2,12 @@
 #include <iostream>
 
 int main() {
-    GraphicalRubikCube<3> cube = GraphicalRubikCube<3>(L"Rubik Cube", 512, 512, 1.0);
+    auto cube = GraphicalRubikCube<2>(L"Rubik Cube", 512, 512, 1.0);
     
-    cube.RotateFace(LEFT, CLOCKWISE, 0);
-    std::cout << cube << std::endl << std::endl;
-    cube.RotateFace(TOP, COUNTERCLOCKWISE, 1);
-    std::cout << cube << std::endl;
+    //cube.RotateFace(LEFT, CLOCKWISE, 0);
+    //std::cout << cube << std::endl << std::endl;
+    //cube.RotateFace(TOP, COUNTERCLOCKWISE, 1);
+    //std::cout << cube << std::endl;
     
     while(cube.ShouldContinue()) {
         cube.UpdateFrame();

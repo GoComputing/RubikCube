@@ -21,3 +21,7 @@ double get_current_time() {
     clock_gettime(CLOCK_REALTIME, &t);
     return t.tv_sec + t.tv_nsec/1000000000.0;
 }
+
+double deg_to_radians(double angle) {
+    return angle * M_PI / 180.0f;
+}

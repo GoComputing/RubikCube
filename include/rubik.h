@@ -56,6 +56,11 @@ protected:
     static Axis GetAxis(FaceElement face);
     
     /**
+      * @brief Returns number of elements in a layer
+      */
+    size_t GetNumElementsLayer() const;
+    
+    /**
       * @brief Calculates the coordinates of a element in a layer
       * @pre depth param is less than CUBE_SIZE
       * @param axis Axis of the layer
@@ -63,7 +68,7 @@ protected:
       * @param depth Depth of the layer
       * @return Returned value is stored in 'face', 'row' and 'col'
       */
-    void GetLayerElementCoords(Axis axis, int element_pos, size_t depth, FaceElement &face, size_t &row, size_t &col);
+    void GetLayerCoords(Axis axis, int element_pos, size_t depth, FaceElement &face, size_t &row, size_t &col) const;
     
     /**
       * @brief Calculates the coordinates of a element in a face
@@ -72,25 +77,43 @@ protected:
       * @param padding Selects a perimeter of the matrix
       * @return Returned value is stored in 'row' and 'col'
       */
-    void GetFaceElementCoords(FaceElement face, int element_pos, size_t padding, size_t &row, size_t &col);
+    void GetFaceElementCoords(FaceElement face, int element_pos, size_t padding, size_t &row, size_t &col) const;
     
     /**
       * @brief Get layer element, which is a FaceElement
-      * @param axis Axis used to determine rotation
+      * @param axis Axis of the layer (see GetAxis)
       * @param element_pos Position of the element inside the layer
       * @param depth Depth of the selected layer
       * @return Element of the layer in selected depth and selected axis
       */
-    FaceElement GetLayerElement(Axis axis, int element_pos, size_t depth);
+    FaceElement GetLayerElement(Axis axis, int element_pos, size_t depth) const;
+    
+    /**
+      * @brief Get object associated with a face element in a specified layer
+      * @param axis Axis of the layer (see GetAxis)
+      * @param element_pos Position of the element inside the layer
+      * @param depth Depth of the selected layer
+      * @return Element of the layer in selected depth and selected axis
+      */
+    const T& GetLayerObject(Axis axis, int element_pos, size_t depth) const;
     
     /**
       * @brief Set layer element
-      * @param axis Axis used to determine rotation
+      * @param axis Axis of the layer (see GetAxis)
       * @param element_pos Position of the element inside the layer
       * @param depth Depth of the selected layer
       * @param value Value to set in the specified element of the specified layer
       */
     void SetLayerElement(Axis axis, int element_pos, size_t depth, FaceElement value);
+    
+    /**
+      * @brief Set layer element
+      * @param axis Axis of the layer (see GetAxis)
+      * @param element_pos Position of the element inside the layer
+      * @param depth Depth of the selected layer
+      * @param value Value to set in the specified element of the specified layer
+      */
+    void SetLayerObject(Axis axis, int element_pos, size_t depth, const T &value);
     
     /**
       * @brief Rotates a layer of the cube. 
@@ -163,6 +186,15 @@ public:
     void GetObjectCoordinates(const T &object, FaceElement &face, size_t &row, size_t &col) const;
     
     /**
+      * @brief Returns all face element objets of one layer, including lateral ones
+      * @pre face shall not be INVALID
+      * @pre depth shall be in range [0, CUBE_SIZE)
+      * @param face Selected layer from face
+      * @return Vector of objets, which are from a specified layer
+      */
+    std::vector<T> GetFaceObjects(FaceElement face, size_t depth) const;
+    
+    /**
       * @brief Get number of faces
       * @return Number of faces
       */
@@ -229,8 +261,13 @@ typename RubikCube<T, CUBE_SIZE>::Axis RubikCube<T, CUBE_SIZE>::GetAxis(FaceElem
 }
 
 template<typename T, size_t CUBE_SIZE>
-void RubikCube<T, CUBE_SIZE>::GetLayerElementCoords(Axis axis, int element_pos, size_t depth, 
-                                                 FaceElement &face, size_t &row, size_t &col) 
+size_t RubikCube<T, CUBE_SIZE>::GetNumElementsLayer() const {
+    return CUBE_SIZE * 4;
+}
+
+template<typename T, size_t CUBE_SIZE>
+void RubikCube<T, CUBE_SIZE>::GetLayerCoords(Axis axis, int element_pos, size_t depth, 
+                                             FaceElement &face, size_t &row, size_t &col) const
 {
     //int TMP = element_pos;
     assert(depth < CUBE_SIZE);
@@ -265,7 +302,7 @@ void RubikCube<T, CUBE_SIZE>::GetLayerElementCoords(Axis axis, int element_pos, 
 }
 
 template<typename T, size_t CUBE_SIZE>
-void RubikCube<T, CUBE_SIZE>::GetFaceElementCoords(FaceElement face, int element_pos, size_t padding, size_t &row, size_t &col) {
+void RubikCube<T, CUBE_SIZE>::GetFaceElementCoords(FaceElement face, int element_pos, size_t padding, size_t &row, size_t &col) const {
     size_t min = padding;
     size_t max = CUBE_SIZE-1 - padding;
     size_t edge_size = max-min;
@@ -286,21 +323,37 @@ void RubikCube<T, CUBE_SIZE>::GetFaceElementCoords(FaceElement face, int element
 }
 
 template<typename T, size_t CUBE_SIZE>
-FaceElement RubikCube<T, CUBE_SIZE>::GetLayerElement(Axis axis, int element_pos, size_t depth) {
+FaceElement RubikCube<T, CUBE_SIZE>::GetLayerElement(Axis axis, int element_pos, size_t depth) const {
     FaceElement face;
     size_t row, col;
-    GetLayerElementCoords(axis, element_pos, depth, face, row, col);
+    GetLayerCoords(axis, element_pos, depth, face, row, col);
     return faces[(int)face][row][col].element;
+}
+
+template<typename T, size_t CUBE_SIZE>
+const T& RubikCube<T, CUBE_SIZE>::GetLayerObject(Axis axis, int element_pos, size_t depth) const {
+    FaceElement face;
+    size_t row, col;
+    GetLayerCoords(axis, element_pos, depth, face, row, col);
+    return *faces[(int)face][row][col].object;
 }
 
 template<typename T, size_t CUBE_SIZE>
 void RubikCube<T, CUBE_SIZE>::SetLayerElement(Axis axis, int element_pos, size_t depth, FaceElement value) {
     FaceElement face;
     size_t row, col;
-    GetLayerElementCoords(axis, element_pos, depth, face, row, col);
+    GetLayerCoords(axis, element_pos, depth, face, row, col);
     faces[(int)face][row][col].element = value;
     //std::cout << "Element pos: " << element_pos << ", face: " << FaceToString(face) 
     //          << ", row: " << row << ", col: " << col << std::endl;
+}
+
+template<typename T, size_t CUBE_SIZE>
+void RubikCube<T, CUBE_SIZE>::SetLayerObject(Axis axis, int element_pos, size_t depth, const T &value) {
+    FaceElement face;
+    size_t row, col;
+    GetLayerCoords(axis, element_pos, depth, face, row, col);
+    faces[(int)face][row][col].object = &value;
 }
 
 template<typename T, size_t CUBE_SIZE>
@@ -317,13 +370,19 @@ void RubikCube<T, CUBE_SIZE>::RotateLayer(FaceElement face, Clockwise clockwise,
     }
     if(clockwise == CLOCKWISE)
         offset *= -1;
-    auto getter = [this, axis, depth](int pos) -> FaceElement {
-        return this->GetLayerElement(axis, pos, depth);
-    };
-    auto setter = [this, axis, depth](int pos, FaceElement face_elem) {
-        this->SetLayerElement(axis, pos, depth, face_elem);
-    };
-    RotateElements<FaceElement>(offset, 4*CUBE_SIZE, getter, setter);
+    auto getter = [this, axis, depth](int pos) -> AssocFaceElement {
+                      FaceElement face;
+                      size_t row, col;
+                      this->GetLayerCoords(axis, pos, depth, face, row, col);
+                      return faces[(int)face][row][col];
+                  };
+    auto setter = [this, axis, depth](int pos, AssocFaceElement face_elem) {
+                      FaceElement face;
+                      size_t row, col;
+                      this->GetLayerCoords(axis, pos, depth, face, row, col);
+                      faces[(int)face][row][col] = face_elem;
+                  };
+    RotateElements<AssocFaceElement>(offset, 4*CUBE_SIZE, getter, setter);
 }
 
 template<typename T, size_t CUBE_SIZE>
@@ -365,6 +424,7 @@ RubikCube<T, CUBE_SIZE>::RubikCube() {
 
 template<typename T, size_t CUBE_SIZE>
 void RubikCube<T, CUBE_SIZE>::RotateFace(FaceElement face, Clockwise clockwise, size_t depth) {
+    std::cout << FaceToString(face) << ", " << clockwise << ", " << depth << std::endl;
     if(depth == 0)
         RotateFaceElements(face, clockwise);
     else if(depth+1 == CUBE_SIZE)
@@ -415,6 +475,32 @@ void RubikCube<T, CUBE_SIZE>::GetObjectCoordinates(const T &object, FaceElement 
         } // End row for
     } // End face for
     assert(found);
+}
+
+template<typename T, size_t CUBE_SIZE>
+std::vector<T> RubikCube<T, CUBE_SIZE>::GetFaceObjects(FaceElement face, size_t depth) const {
+    assert(face >= 0 && face < INVALID);
+    assert(depth >= 0 && depth < CUBE_SIZE);
+    std::vector<T> face_objects;
+    
+    if(face == LEFT || face == BACK || face == BOTTOM) {
+        depth = CUBE_SIZE-1 - depth;
+    }
+    
+    // Add front face elements
+    if(depth == 0 || depth+1 == CUBE_SIZE) {
+        for(size_t i=0; i<CUBE_SIZE; ++i)
+            for(size_t j=0; j<CUBE_SIZE; j++)
+                face_objects.push_back(*(faces[face][i][j].object));
+    }
+    
+    // Add lateral face elements
+    size_t num_elements = GetNumElementsLayer();
+    Axis axis = GetAxis(face);
+    for(size_t i=0; i<num_elements; ++i)
+        face_objects.push_back(GetLayerObject(axis, i, depth));
+    
+    return face_objects;
 }
 
 template<typename T, size_t CUBE_SIZE>

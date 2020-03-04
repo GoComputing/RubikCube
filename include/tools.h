@@ -38,6 +38,13 @@ double positive_mod(double num, double den);
   */
 double get_current_time();
 
+/**
+  * @brief Converts an angle from degrees to radians
+  * @param angle Angle in degrees
+  * @return Same angle, in radians space
+  */
+double deg_to_radians(double angle);
+
 
 
 
